@@ -1,0 +1,65 @@
+// Script 1 to create formatted schedule file
+function processSchedule() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet1 = ss.getSheetByName("RAW SHEET");  // Raw Schedule
+  var formattedSheet = ss.getSheetByName("FormattedSchedule");  
+  var contactSheet = ss.getSheetByName("ContactList");
+
+  if (!formattedSheet) {
+    formattedSheet = ss.insertSheet("FormattedSchedule");
+  } else {
+    formattedSheet.clear(); // Clear old data
+  }
+
+  var rawData = sheet1.getDataRange().getValues();
+  var formattedData = [["Patient Name", "Session 1", "Time 1", "Therapist 1", 
+                        "Session 2", "Time 2", "Therapist 2", 
+                        "Session 3", "Time 3", "Therapist 3", 
+                        "Session 4", "Time 4", "Therapist 4", "Contact Number"]];
+
+  var patientMap = {};
+
+  for (var i = 2; i < rawData.length; i++) {  // Start from row 3 (index 2)
+    for (var j = 1; j < rawData[i].length; j++) { // Skip time column
+      if (rawData[i][j]) {  
+        var patientName = rawData[i][j];
+        var sessionTime = rawData[i][0];
+        var therapistName = rawData[1][j];
+        var sessionType = rawData[0][j];
+
+        if (!patientMap[patientName]) {
+          patientMap[patientName] = [patientName, "", "", "", "", "", "", "", "", "", "", "", "", ""]; // 14 columns
+        }
+
+        var row = patientMap[patientName];
+        for (var s = 1; s <= 4; s++) {
+          if (row[s * 3 - 2] === "") { // Find next available session slot
+            row[s * 3 - 2] = sessionType;
+            row[s * 3 - 1] = sessionTime;
+            row[s * 3] = therapistName;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Load Contact Numbers
+  var contactMap = {};
+  if (contactSheet) {
+    var contactData = contactSheet.getDataRange().getValues();
+    for (var i = 1; i < contactData.length; i++) {
+      contactMap[contactData[i][0]] = contactData[i][1]; // Patient Name -> Contact Number
+    }
+  }
+
+  // Append data and add contact numbers
+  for (var patient in patientMap) {
+    var row = patientMap[patient];
+    row[13] = contactMap[patient] || "Not Found"; // Add contact number at correct index
+    formattedData.push(row);
+  }
+
+  // Write to FormattedSchedule sheet
+  formattedSheet.getRange(1, 1, formattedData.length, formattedData[0].length).setValues(formattedData);
+}
