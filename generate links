@@ -1,0 +1,58 @@
+// generates likes to send whatsaap msg
+function generateWhatsAppLinks() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("FormattedSchedule");
+
+  if (!sheet) {
+    Logger.log("FormattedSchedule sheet not found.");
+    return;
+  }
+
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var contactColIndex = headers.indexOf("Contact Number");
+  var linkColIndex = headers.indexOf("WhatsApp Link");
+
+  if (contactColIndex === -1) {
+    Logger.log("Contact Number column not found.");
+    return;
+  }
+
+  if (linkColIndex === -1) {
+    headers.push("WhatsApp Link");
+    linkColIndex = headers.length - 1;
+  }
+
+  data[0] = headers; // Update headers if necessary
+
+  for (var i = 1; i < data.length; i++) {
+    var contactNumber = data[i][contactColIndex];
+    var patientName = data[i][0];
+
+    if (contactNumber && contactNumber !== "Not Found") {
+      var message = `Dear Parents, \n Tomorrow ${patientName}'s `;
+
+      // Loop through session details dynamically (supports 1-4 sessions)
+      for (var s = 1; s <= 4; s++) {
+        var sessionIndex = 1 + (s - 1) * 3; // Session column index
+        if (sessionIndex >= data[i].length || !data[i][sessionIndex]) break; // Stop if no more sessions
+
+        var sessionName = data[i][sessionIndex];
+        var sessionTime = data[i][sessionIndex + 1];
+        var therapistName = data[i][sessionIndex + 2];
+
+        message += `${sessionName} session is scheduled at ${sessionTime} with ${therapistName}. `;
+      }
+
+      var encodedMessage = encodeURIComponent(message.trim());
+      var waLink = `https://wa.me/${contactNumber}?text=${encodedMessage}`;
+
+      data[i][linkColIndex] = waLink;
+    } else {
+      data[i][linkColIndex] = "No Contact Found";
+    }
+  }
+
+  sheet.clear();
+  sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+}
